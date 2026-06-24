@@ -1,0 +1,17 @@
+{
+  "manifest_version": 3,
+  "name": "PromptShield",
+  "version": "1.0",
+  "description": "Smart Privacy Copilot for AI.",
+  "permissions": ["activeTab"],
+  "action": {
+    "default_popup": "index.html",
+    "default_title": "Open PromptShield"
+  },
+  "content_scripts": [
+    {
+      "matches": ["*://chatgpt.com/*"],
+      "js": ["content.js"]
+    }
+  ]
+}
