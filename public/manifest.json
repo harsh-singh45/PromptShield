@@ -1,9 +1,12 @@
 {
   "manifest_version": 3,
-  "name": "PromptShield",
+  "name": "PromptShield (React)",
   "version": "1.0",
   "description": "Smart Privacy Copilot for AI.",
-  "permissions": ["activeTab"],
+  "permissions": [
+    "activeTab", 
+    "storage"
+  ],
   "action": {
     "default_popup": "index.html",
     "default_title": "Open PromptShield"
