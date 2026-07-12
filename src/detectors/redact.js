@@ -1,23 +1,30 @@
+// src/detectors/redact.js
+
 /**
- * Performs single-pass string reconstruction using known token coordinates.
- * Algorithmic complexity: O(N log N) for sorting coordinates, O(N) for string reconstruction.
+ * Replaces detected threat spans with safe placeholder tags.
+ * Operates right-to-left to ensure startIndex/endIndex coordinates never drift.
+ * 
+ * @param {string} text - The original prompt text
+ * @param {Array} threats - Array of threat objects from scanText()
+ * @returns {string} - The sanitized string
  */
-export function redactText(originalText, detectedThreats) {
-  if (!detectedThreats || detectedThreats.length === 0) return originalText;
-
-  // 1. Sort threats from right to left (highest startIndex first)
-  const sortedThreats = [...detectedThreats].sort((a, b) => b.startIndex - a.startIndex);
-
-  let result = originalText;
-
-  // 2. Splicing from right to left guarantees earlier coordinates remain 100% accurate
-  for (const threat of sortedThreats) {
-    const prefix = result.slice(0, threat.startIndex);
-    const suffix = result.slice(threat.endIndex);
-    const placeholder = `[REDACTED_${threat.type.toUpperCase()}]`;
-
-    result = `${prefix}${placeholder}${suffix}`;
+export function redactText(text, threats = []) {
+  if (!text || typeof text !== 'string' || threats.length === 0) {
+    return text;
   }
 
-  return result;
+  // Clone and sort descending by startIndex (right-to-left processing)
+  const sortedThreats = [...threats].sort((a, b) => b.startIndex - a.startIndex);
+  
+  let sanitized = text;
+
+  for (const threat of sortedThreats) {
+    const placeholder = `[REDACTED-${threat.type.toUpperCase()}]`;
+    sanitized = 
+      sanitized.slice(0, threat.startIndex) + 
+      placeholder + 
+      sanitized.slice(threat.endIndex);
+  }
+
+  return sanitized;
 }

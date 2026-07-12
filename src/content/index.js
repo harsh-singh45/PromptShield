@@ -1,6 +1,7 @@
 import { scanText } from '../detectors/index';
 import { redactText } from '../detectors/redact';
 import { initUI, showWarning, hideWarning } from './ui';
+import { executeDeepScan } from '../services/scanner';
 
 console.log("🛡️ PromptShield Enterprise Engine Initialized");
 
@@ -56,7 +57,7 @@ function triggerImmediateScan() {
       // We run the scan synchronously (bypassing the 200ms debounce) for zero-latency UX
       currentThreats = scanText(text);
       if (currentThreats.length > 0) {
-        showWarning(currentThreats, executeSafeRedaction);
+        showWarning(currentThreats, executeSafeRedaction, handleDeepScan);
       } else {
         hideWarning();
       }
@@ -80,7 +81,7 @@ const runScan = debounce((text) => {
   
   currentThreats = scanText(text);
   if (currentThreats.length > 0) {
-    showWarning(currentThreats, executeSafeRedaction);
+    showWarning(currentThreats, executeSafeRedaction, handleDeepScan);
   } else {
     hideWarning();
   }
@@ -146,8 +147,49 @@ function executeSafeRedaction() {
   hideWarning();
 }
 
+
 // =================================================================
-// 6. EVENT DELEGATION & SPA OBSERVER
+// 6. PHASE 3: DEEP SCAN HANDLER (Using services/scanner.js)
+// =================================================================
+async function handleDeepScan() {
+  if (!activeTarget || !isShieldActive) return;
+
+  const isTextarea = activeTarget.tagName.toLowerCase() === 'textarea';
+  const originalText = isTextarea ? activeTarget.value : activeTarget.innerText;
+  if (!originalText.trim()) return;
+
+  try {
+    // Calls your existing FastAPI service
+    const result = await executeDeepScan(originalText);
+    const cleanedText = result.sanitizedText;
+
+    if (originalText === cleanedText) {
+      hideWarning();
+      return;
+    }
+
+    // Insert clean text so ChatGPT/Claude recognize the DOM change
+    if (isTextarea) {
+      activeTarget.value = cleanedText;
+    } else {
+      activeTarget.focus();
+      document.execCommand('selectAll', false, null);
+      const success = document.execCommand('insertText', false, cleanedText);
+      if (!success) activeTarget.innerText = cleanedText;
+    }
+
+    activeTarget.dispatchEvent(new Event('input', { bubbles: true, cancelable: true }));
+    activeTarget.dispatchEvent(new Event('change', { bubbles: true, cancelable: true }));
+    hideWarning();
+  } catch (err) {
+    console.error("Deep Scan execution failed:", err);
+  }
+}
+
+
+
+// =================================================================
+// 7. EVENT DELEGATION & SPA OBSERVER
 // =================================================================
 document.addEventListener('input', handleInputEvent, { capture: true });
 document.addEventListener('paste', handleInputEvent, { capture: true });

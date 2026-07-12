@@ -24,8 +24,10 @@ export function initUI() {
     .header { display: flex; align-items: center; gap: 8px; color: #ef4444; font-weight: 700; font-size: 14px; }
     .threat-list { display: flex; flex-direction: column; gap: 6px; max-height: 150px; overflow-y: auto; }
     .threat-item { background: #27272a; padding: 8px 10px; border-radius: 6px; display: flex; justify-content: space-between; font-size: 12px; }
-    .btn-redact { background: #ef4444; color: white; border: none; padding: 10px; border-radius: 6px; font-weight: 600; cursor: pointer; }
+    .btn-redact { background: #ef4444; color: white; border: none; padding: 10px; border-radius: 6px; font-weight: 600; cursor: pointer; width: 100%; }
     .btn-redact:hover { background: #dc2626; }
+    .btn-deep { background: #2563eb; color: white; border: none; padding: 10px; border-radius: 6px; font-weight: 600; cursor: pointer; width: 100%; margin-top: 6px; }
+    .btn-deep:hover { background: #1d4ed8; }
   `;
   shadowRoot.appendChild(style);
 
@@ -39,7 +41,7 @@ export function hideWarning() {
   if (warningContainer) warningContainer.style.display = 'none';
 }
 
-export function showWarning(threats, onRedact) {
+export function showWarning(threats, onRedact, onDeepScan) {
   if (!warningContainer) initUI();
 
   // Clear previous DOM nodes
@@ -80,7 +82,7 @@ export function showWarning(threats, onRedact) {
   });
   warningContainer.appendChild(list);
 
-  // Redact Button
+  // 1. Existing Fast Auto-Redact Button
   const btn = document.createElement('button');
   btn.className = 'btn-redact';
   btn.textContent = '🛡️ Auto-Redact Threats';
@@ -89,6 +91,20 @@ export function showWarning(threats, onRedact) {
     hideWarning();
   };
   warningContainer.appendChild(btn);
+
+  // 2. 👉 ADDED: Deep Scan Button (Only renders if passed from index.js)
+  if (onDeepScan) {
+    const btnDeep = document.createElement('button');
+    btnDeep.className = 'btn-deep';
+    btnDeep.textContent = '🔬 Deep Scan (Presidio NLP)';
+    btnDeep.onclick = async () => {
+      btnDeep.textContent = 'Scanning Backend...';
+      btnDeep.disabled = true;
+      btn.disabled = true;
+      await onDeepScan();
+    };
+    warningContainer.appendChild(btnDeep);
+  }
 
   warningContainer.style.display = 'flex';
 }
