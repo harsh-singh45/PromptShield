@@ -28,6 +28,17 @@ export function initUI() {
     .btn-redact:hover { background: #dc2626; }
     .btn-deep { background: #2563eb; color: white; border: none; padding: 10px; border-radius: 6px; font-weight: 600; cursor: pointer; width: 100%; margin-top: 6px; }
     .btn-deep:hover { background: #1d4ed8; }
+    .clean-box {
+    background: #18181b; color: #10b981; padding: 8px 14px;
+    border-radius: 20px; border: 1px solid #10b981; font-family: system-ui, sans-serif;
+    box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.4); display: none; align-items: center; gap: 10px;
+    font-size: 13px; font-weight: 600;
+  }
+  .btn-mini-deep {
+    background: #2563eb; color: white; border: none; padding: 4px 10px;
+    border-radius: 12px; font-weight: 600; cursor: pointer; font-size: 11px; transition: background 0.2s;
+  }
+  .btn-mini-deep:hover { background: #1d4ed8; }
   `;
   shadowRoot.appendChild(style);
 
@@ -42,6 +53,7 @@ export function hideWarning() {
 }
 
 export function showWarning(threats, onRedact, onDeepScan) {
+  warningContainer.className = 'shield-box';
   if (!warningContainer) initUI();
 
   // Clear previous DOM nodes
@@ -97,10 +109,56 @@ export function showWarning(threats, onRedact, onDeepScan) {
     const btnDeep = document.createElement('button');
     btnDeep.className = 'btn-deep';
     btnDeep.textContent = '🔬 Deep Scan (Presidio NLP)';
+    
     btnDeep.onclick = async () => {
       btnDeep.textContent = 'Scanning Backend...';
       btnDeep.disabled = true;
-      btn.disabled = true;
+      if (typeof btn !== 'undefined') btn.disabled = true;
+
+      try {
+        await onDeepScan();
+        // If executeDeepScan succeeds, it automatically calls hideWarning()
+      } catch (err) {
+        console.error("Deep scan failed:", err);
+        btnDeep.textContent = '❌ Scan Failed (Check Console)';
+        btnDeep.style.background = '#dc2626';
+        
+        // Reset button after 3 seconds so the user isn't stuck
+        setTimeout(() => {
+          btnDeep.textContent = '🔬 Deep Scan (Presidio NLP)';
+          btnDeep.style.background = '#2563eb';
+          btnDeep.disabled = false;
+          if (typeof btn !== 'undefined') btn.disabled = false;
+        }, 3000);
+      }
+    };
+    warningContainer.appendChild(btnDeep);
+  }
+
+  warningContainer.style.display = 'flex';
+}
+
+export function showCleanState(onDeepScan) {
+  if (!warningContainer) initUI();
+
+  while (warningContainer.firstChild) {
+    warningContainer.removeChild(warningContainer.firstChild);
+  }
+
+  // Swap class to render compact green standby badge instead of red warning box
+  warningContainer.className = 'clean-box';
+
+  const statusText = document.createElement('span');
+  statusText.textContent = '🛡️ Protected (0 Regex Threats)';
+  warningContainer.appendChild(statusText);
+
+  if (onDeepScan) {
+    const btnDeep = document.createElement('button');
+    btnDeep.className = 'btn-mini-deep';
+    btnDeep.textContent = '🔬 Deep Scan';
+    btnDeep.onclick = async () => {
+      btnDeep.textContent = 'Scanning...';
+      btnDeep.disabled = true;
       await onDeepScan();
     };
     warningContainer.appendChild(btnDeep);

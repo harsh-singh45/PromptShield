@@ -1,6 +1,6 @@
 import { scanText } from '../detectors/index';
 import { redactText } from '../detectors/redact';
-import { initUI, showWarning, hideWarning } from './ui';
+import { initUI, showWarning, hideWarning, showCleanState } from './ui';
 import { executeDeepScan } from '../services/scanner';
 
 console.log("🛡️ PromptShield Enterprise Engine Initialized");
@@ -42,8 +42,10 @@ if (typeof chrome !== 'undefined' && chrome.storage) {
 // =================================================================
 // 2. INSTANT RESCAN ROUTINE (For when extension is turned back ON)
 // =================================================================
+// =================================================================
+// 2. INSTANT RESCAN ROUTINE (For when extension is turned back ON)
+// =================================================================
 function triggerImmediateScan() {
-  // Hunt down the active editor: check last known target, focused element, or query the DOM directly
   const target = activeTarget || 
                  document.activeElement?.closest('textarea, [contenteditable="true"], #prompt-textarea') || 
                  document.querySelector('textarea, [contenteditable="true"], #prompt-textarea');
@@ -53,14 +55,16 @@ function triggerImmediateScan() {
     const text = target.value || target.innerText || '';
     
     if (text.trim()) {
-      console.log("⚡ Instant Rescan triggered on existing text...");
-      // We run the scan synchronously (bypassing the 200ms debounce) for zero-latency UX
       currentThreats = scanText(text);
       if (currentThreats.length > 0) {
+        // 👉 THE FIX: Pass handleDeepScan instead of executeDeepScan
         showWarning(currentThreats, executeSafeRedaction, handleDeepScan);
       } else {
-        hideWarning();
+        // 👉 THE FIX: Pass handleDeepScan instead of executeDeepScan
+        showCleanState(handleDeepScan);
       }
+    } else {
+      hideWarning();
     }
   }
 }
@@ -79,14 +83,20 @@ function debounce(func, wait) {
 const runScan = debounce((text) => {
   if (!isShieldActive) return;
   
+  if (!text || !text.trim()) {
+    hideWarning();
+    return;
+  }
+
   currentThreats = scanText(text);
   if (currentThreats.length > 0) {
+    // 👉 THE FIX: Pass handleDeepScan instead of executeDeepScan
     showWarning(currentThreats, executeSafeRedaction, handleDeepScan);
   } else {
-    hideWarning();
+    // 👉 THE FIX: Pass handleDeepScan instead of executeDeepScan
+    showCleanState(handleDeepScan);
   }
 }, 200);
-
 // =================================================================
 // 4. UNIVERSAL EVENT HANDLER
 // =================================================================
@@ -183,6 +193,7 @@ async function handleDeepScan() {
     hideWarning();
   } catch (err) {
     console.error("Deep Scan execution failed:", err);
+    throw err;
   }
 }
 
